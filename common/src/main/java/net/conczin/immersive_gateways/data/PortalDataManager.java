@@ -104,6 +104,19 @@ public class PortalDataManager {
         return portal;
     }
 
+    public static void addManualConnection(ServerLevel level, BlockPos first, BlockPos second) {
+        PortalDataLookup state = getState(level);
+        state.remove(first);
+        state.remove(second);
+
+        PortalPair pair = new PortalPair(
+                new Portal(estimateBoundingBox(level, first), getColor(level, first)),
+                new Portal(estimateBoundingBox(level, second), getColor(level, second))
+        );
+
+        state.add(pair);
+    }
+
     public static BlockPos placeStructure(ServerLevel level, BlockPos pos, boolean useFallback, boolean checkInhabitedTime) {
         Registry<Structure> registry = level.registryAccess().registry(Registries.STRUCTURE).orElse(null);
         if (registry == null) {
@@ -302,6 +315,22 @@ public class PortalDataManager {
             setDirty();
         }
 
+        public synchronized void remove(BlockPos pos) {
+            PortalPair pair = search(pos);
+            if (pair != null) {
+                portals.remove(pair);
+                rebuildLookup();
+                setDirty();
+            }
+        }
+
+        private void rebuildLookup() {
+            lookup.clear();
+            for (PortalPair pair : portals) {
+                populateLookup(pair);
+            }
+        }
+
         private void populateLookup(PortalPair data) {
             populateLookup(data, data.first);
             populateLookup(data, data.second);
@@ -321,7 +350,7 @@ public class PortalDataManager {
             }
         }
 
-        public PortalPair search(BlockPos pos) {
+        public synchronized PortalPair search(BlockPos pos) {
             int cx = pos.getX() >> 4;
             int cz = pos.getZ() >> 4;
             long cellId = toLong(cx, cz);

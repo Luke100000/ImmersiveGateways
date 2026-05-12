@@ -1,7 +1,9 @@
 package net.conczin.immersive_gateways.forge;
 
 import net.conczin.immersive_gateways.Common;
+import net.conczin.immersive_gateways.GatewayDebugCommands;
 import net.conczin.immersive_gateways.block.GatewayExecutorController;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -13,10 +15,17 @@ public class CommonForge {
     @SubscribeEvent
     public static void handleServerAboutToStart(ServerAboutToStartEvent event) {
         GatewayExecutorController.reset();
+        GatewayDebugCommands.reset();
+    }
+
+    @SubscribeEvent
+    public static void registerCommands(RegisterCommandsEvent event) {
+        GatewayDebugCommands.register(event.getDispatcher());
     }
 
     @SubscribeEvent
     public static void handleServerStopping(ServerStoppingEvent event) {
         GatewayExecutorController.shutdown();
+        GatewayDebugCommands.reset();
     }
 }

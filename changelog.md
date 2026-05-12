@@ -2,6 +2,7 @@
 
 * Fixed issues with config loading
 * Config now generates immediately
+* Added admin commands to create portals
 
 # 0.0.4
 

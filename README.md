@@ -10,3 +10,10 @@ tables etc.).
 ```bash
 uv run python main.py
 ```
+
+## Admin debug commands
+
+Operators with permission level 2 can manage saved gateway links with `/gateway start|finish|detect` while looking at a
+gateway block.
+Use `/gateway start` at the first gateway, `/gateway finish` at the second to link them, and `/gateway detect` to print
+the selected gateway's target.
