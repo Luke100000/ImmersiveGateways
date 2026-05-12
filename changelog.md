@@ -1,3 +1,8 @@
+# 0.0.5
+
+* Fixed issues with config loading
+* Config now generates immediately
+
 # 0.0.4
 
 * Removed unsafe randoms

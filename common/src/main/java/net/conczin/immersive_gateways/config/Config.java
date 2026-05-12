@@ -20,11 +20,11 @@ public final class Config extends JsonConfig {
         return 0;
     }
 
-    public final int minDistance = 1024;
-    public final int maxDistance = 8096;
-    public final boolean onlyPlayersCanTeleport = true;
+    public int minDistance = 1024;
+    public int maxDistance = 8096;
+    public boolean onlyPlayersCanTeleport = true;
 
-    public final Map<String, Integer> colors = Map.<String, Integer>ofEntries(
+    public Map<String, Integer> colors = Map.<String, Integer>ofEntries(
             Map.entry("minecraft:plains", 0x7fb238),
             Map.entry("minecraft:desert", 0xf7e9a3),
             Map.entry("minecraft:forest", 0x599011),
