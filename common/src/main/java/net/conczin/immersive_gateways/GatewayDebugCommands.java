@@ -2,10 +2,15 @@ package net.conczin.immersive_gateways;
 
 import com.mojang.brigadier.CommandDispatcher;
 import net.conczin.immersive_gateways.data.PortalDataManager;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.ClickEvent.Action;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentUtils;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,12 +42,12 @@ public class GatewayDebugCommands {
         ServerPlayer player = source.getPlayerOrException();
         BlockPos pos = getLookedGateway(player);
         if (pos == null) {
-            source.sendFailure(Component.literal("Look at a gateway block first."));
+            source.sendFailure(Component.translatable("immersive_gateways.command.look_at_gateway"));
             return 0;
         }
 
         STARTS.put(player.getUUID(), new PendingStart(player.level().dimension(), pos));
-        source.sendSuccess(() -> Component.literal("Gateway start set to " + format(pos) + "."), false);
+        source.sendSuccess(() -> Component.translatable("immersive_gateways.command.start", tp(pos)), false);
         return 1;
     }
 
@@ -50,17 +55,17 @@ public class GatewayDebugCommands {
         ServerPlayer player = source.getPlayerOrException();
         BlockPos finish = getLookedGateway(player);
         if (finish == null) {
-            source.sendFailure(Component.literal("Look at a gateway block first."));
+            source.sendFailure(Component.translatable("immersive_gateways.command.look_at_gateway"));
             return 0;
         }
 
         PendingStart start = STARTS.get(player.getUUID());
         if (start == null) {
-            source.sendFailure(Component.literal("Run /gateway start first."));
+            source.sendFailure(Component.translatable("immersive_gateways.command.start_required"));
             return 0;
         }
         if (start.dimension() != player.level().dimension()) {
-            source.sendFailure(Component.literal("Gateway start is in another dimension. Run /gateway start here first."));
+            source.sendFailure(Component.translatable("immersive_gateways.command.dimension_mismatch"));
             return 0;
         }
 
@@ -71,7 +76,7 @@ public class GatewayDebugCommands {
         );
         STARTS.remove(player.getUUID());
 
-        source.sendSuccess(() -> Component.literal("Added gateway connection."), true);
+        source.sendSuccess(() -> Component.translatable("immersive_gateways.command.finish"), true);
         return 1;
     }
 
@@ -80,18 +85,18 @@ public class GatewayDebugCommands {
         ServerLevel level = player.serverLevel();
         BlockPos pos = getLookedGateway(player);
         if (pos == null) {
-            source.sendFailure(Component.literal("Look at a gateway block first."));
+            source.sendFailure(Component.translatable("immersive_gateways.command.look_at_gateway"));
             return 0;
         }
 
         PortalDataManager.PortalPair pair = PortalDataManager.search(level, pos, false);
         if (pair == null) {
-            source.sendFailure(Component.literal("No saved gateway connection for " + format(pos) + "."));
+            source.sendFailure(Component.translatable("immersive_gateways.command.detect_missing", tp(pos)));
             return 0;
         }
 
         BoundingBox target = pair.getTarget(pos).boundingBox();
-        source.sendSuccess(() -> Component.literal("Gateway at " + format(pos) + " points to " + format(target.getCenter()) + "."), false);
+        source.sendSuccess(() -> Component.translatable("immersive_gateways.command.detect", tp(pos), tp(target.getCenter())), false);
         return 1;
     }
 
@@ -105,8 +110,13 @@ public class GatewayDebugCommands {
         return player.level().getBlockState(pos).is(Blocks.GATEWAY) ? pos : null;
     }
 
-    private static String format(BlockPos pos) {
-        return pos.getX() + " " + pos.getY() + " " + pos.getZ();
+    private static Component tp(BlockPos pos) {
+        String command = "/tp @s " + pos.getX() + " " + pos.getY() + " " + pos.getZ();
+        return ComponentUtils.wrapInSquareBrackets(Component.translatable("chat.coordinates", pos.getX(), pos.getY(), pos.getZ()))
+                .withStyle(style -> style
+                        .withColor(ChatFormatting.GREEN)
+                        .withClickEvent(new ClickEvent(Action.SUGGEST_COMMAND, command))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("chat.coordinates.tooltip"))));
     }
 
     private record PendingStart(ResourceKey<Level> dimension, BlockPos pos) {
