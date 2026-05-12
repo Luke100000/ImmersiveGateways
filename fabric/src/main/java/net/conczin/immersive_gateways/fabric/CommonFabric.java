@@ -27,5 +27,7 @@ public class CommonFabric implements ModInitializer {
         //noinspection DataFlowIssue
         BlockEntityTypes.register((name, factory, block) ->
                 Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, name, BlockEntityType.Builder.of(factory::create, block).build(null)));
+
+        Common.init();
     }
 }

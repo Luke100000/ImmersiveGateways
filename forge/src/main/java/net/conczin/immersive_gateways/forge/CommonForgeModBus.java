@@ -7,6 +7,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.registries.RegisterEvent;
 
 import java.util.function.Consumer;
@@ -35,5 +36,10 @@ public class CommonForgeModBus {
                         return build;
                     }));
         }
+    }
+
+    @SubscribeEvent
+    static void onCommonSetup(FMLCommonSetupEvent event) {
+        Common.init();
     }
 }
