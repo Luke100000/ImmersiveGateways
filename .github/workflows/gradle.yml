@@ -17,12 +17,13 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout Commit
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Fetch Tags
         run: git fetch --unshallow --tags
       - name: Set up JDK 21
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: 21
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -49,7 +50,7 @@ jobs:
           name: "[Fabric ${{steps.split.outputs._1}}] Immersive Gateways - ${{steps.split.outputs._0}}"
           changelog-file: changelog.md
           version-type: release
-          files: "fabric/build/libs/immersive_gateways-fabric-${{steps.tag.outputs.tag}}.jar"
+          files: "fabric/build/libs/immersive_gateways-fabric-${{steps.split.outputs._0}}.jar"
           loaders: |
             fabric
           game-versions: |
@@ -60,7 +61,7 @@ jobs:
             fabric-api | required | *
 
           fail-mode: skip
-      - name: "Upload Forge"
+      - name: "Upload NeoForge"
         uses: Kir-Antipov/mc-publish@v3.3.0
         if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
         with:
@@ -69,12 +70,12 @@ jobs:
           curseforge-id: ${{ env.CURSEFORGE_ID }}
           curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
 
-          name: "[Forge ${{steps.split.outputs._1}}] Immersive Gateways - ${{steps.split.outputs._0}}"
+          name: "[NeoForge ${{steps.split.outputs._1}}] Immersive Gateways - ${{steps.split.outputs._0}}"
           changelog-file: changelog.md
           version-type: release
-          files: "forge/build/libs/immersive_gateways-forge-${{steps.tag.outputs.tag}}.jar"
+          files: "neoforge/build/libs/immersive_gateways-neoforge-${{steps.split.outputs._0}}.jar"
           loaders: |
-            forge
+            neoforge
           game-versions: |
             ${{steps.split.outputs._1}}
           java: |
