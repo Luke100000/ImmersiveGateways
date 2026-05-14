@@ -1,5 +1,6 @@
 package net.conczin.immersive_gateways.block;
 
+import com.mojang.serialization.MapCodec;
 import net.conczin.immersive_gateways.BlockEntityTypes;
 import net.conczin.immersive_gateways.config.Config;
 import net.minecraft.core.BlockPos;
@@ -27,6 +28,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class GatewayBlock extends BaseEntityBlock {
+    public static final MapCodec<GatewayBlock> CODEC = simpleCodec(GatewayBlock::new);
     public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
 
     protected static final VoxelShape X_AXIS_AABB = Block.box(0.0, 0.0, 2.0, 16.0, 16.0, 14.0);
@@ -37,6 +39,11 @@ public class GatewayBlock extends BaseEntityBlock {
         super(properties);
 
         this.registerDefaultState(this.stateDefinition.any().setValue(AXIS, Direction.Axis.X));
+    }
+
+    @Override
+    protected MapCodec<GatewayBlock> codec() {
+        return CODEC;
     }
 
     @Override

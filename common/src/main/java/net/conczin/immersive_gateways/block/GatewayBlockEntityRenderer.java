@@ -107,10 +107,10 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
     }
 
     private void renderFace(PoseStack.Pose pose, VertexConsumer consumer, float x0, float x1, float y0, float y1, float z0, float z1, float z2, float z3) {
-        consumer.vertex(pose.pose(), x0, y0, z0).endVertex();
-        consumer.vertex(pose.pose(), x1, y0, z1).endVertex();
-        consumer.vertex(pose.pose(), x1, y1, z2).endVertex();
-        consumer.vertex(pose.pose(), x0, y1, z3).endVertex();
+        consumer.addVertex(pose.pose(), x0, y0, z0);
+        consumer.addVertex(pose.pose(), x1, y0, z1);
+        consumer.addVertex(pose.pose(), x1, y1, z2);
+        consumer.addVertex(pose.pose(), x0, y1, z3);
     }
 
     private void renderFace(PoseStack.Pose pose, VertexConsumer consumer, float x0, float x1, float y0, float y1, float z0, float z1, float z2, float z3, int face, int light, int overlay, float brightness, int color) {
@@ -126,16 +126,16 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
         Vector3f n = pose.normal().transform(new Vector3f(NORMALS[face]));
 
         pose.pose().transform(x0, y0, z0, 1.0f, p);
-        consumer.vertex(p.x(), p.y(), p.z(), r, g, b, a, u / 32.0f, v / 32.0f, overlay, light, n.x(), n.y(), n.z());
+        consumer.addVertex(p.x(), p.y(), p.z()).setColor(r, g, b, a).setUv(u / 32.0f, v / 32.0f).setOverlay(overlay).setLight(light).setNormal(n.x(), n.y(), n.z());
 
         pose.pose().transform(x1, y0, z1, 1.0f, p);
-        consumer.vertex(p.x(), p.y(), p.z(), r, g, b, a, (u + 6.0f) / 32.0f, v / 32.0f, overlay, light, n.x(), n.y(), n.z());
+        consumer.addVertex(p.x(), p.y(), p.z()).setColor(r, g, b, a).setUv((u + 6.0f) / 32.0f, v / 32.0f).setOverlay(overlay).setLight(light).setNormal(n.x(), n.y(), n.z());
 
         pose.pose().transform(x1, y1, z2, 1.0f, p);
-        consumer.vertex(p.x(), p.y(), p.z(), r, g, b, a, (u + 6.0f) / 32.0f, (v + 6.0f) / 32.0f, overlay, light, n.x(), n.y(), n.z());
+        consumer.addVertex(p.x(), p.y(), p.z()).setColor(r, g, b, a).setUv((u + 6.0f) / 32.0f, (v + 6.0f) / 32.0f).setOverlay(overlay).setLight(light).setNormal(n.x(), n.y(), n.z());
 
         pose.pose().transform(x0, y1, z3, 1.0f, p);
-        consumer.vertex(p.x(), p.y(), p.z(), r, g, b, a, u / 32.0f, (v + 6.0f) / 32.0f, overlay, light, n.x(), n.y(), n.z());
+        consumer.addVertex(p.x(), p.y(), p.z()).setColor(r, g, b, a).setUv(u / 32.0f, (v + 6.0f) / 32.0f).setOverlay(overlay).setLight(light).setNormal(n.x(), n.y(), n.z());
     }
 
     ///  Iris support
@@ -213,20 +213,20 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
         float ny = direction.getStepY();
         float nz = direction.getStepZ();
 
-        vertexConsumer.vertex(pose, x1, y1, z1).color(r, g, b, 1.0f)
-                .uv(0.0F + progress, 0.0F + progress).overlayCoords(overlay).uv2(light)
-                .normal(normal, nx, ny, nz).endVertex();
+        vertexConsumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, 1.0f)
+                .setUv(0.0F + progress, 0.0F + progress).setOverlay(overlay).setLight(light)
+                .setNormal(nx, ny, nz);
 
-        vertexConsumer.vertex(pose, x2, y2, z2).color(r, g, b, 1.0f)
-                .uv(0.0F + progress, 0.1F + progress).overlayCoords(overlay).uv2(light)
-                .normal(normal, nx, ny, nz).endVertex();
+        vertexConsumer.addVertex(pose, x2, y2, z2).setColor(r, g, b, 1.0f)
+                .setUv(0.0F + progress, 0.1F + progress).setOverlay(overlay).setLight(light)
+                .setNormal(nx, ny, nz);
 
-        vertexConsumer.vertex(pose, x3, y3, z3).color(r, g, b, 1.0f)
-                .uv(0.1F + progress, 0.1F + progress).overlayCoords(overlay).uv2(light)
-                .normal(normal, nx, ny, nz).endVertex();
+        vertexConsumer.addVertex(pose, x3, y3, z3).setColor(r, g, b, 1.0f)
+                .setUv(0.1F + progress, 0.1F + progress).setOverlay(overlay).setLight(light)
+                .setNormal(nx, ny, nz);
 
-        vertexConsumer.vertex(pose, x4, y4, z4).color(r, g, b, 1.0f)
-                .uv(0.1F + progress, 0.0F + progress).overlayCoords(overlay).uv2(light)
-                .normal(normal, nx, ny, nz).endVertex();
+        vertexConsumer.addVertex(pose, x4, y4, z4).setColor(r, g, b, 1.0f)
+                .setUv(0.1F + progress, 0.0F + progress).setOverlay(overlay).setLight(light)
+                .setNormal(nx, ny, nz);
     }
 }

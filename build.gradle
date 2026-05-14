@@ -1,23 +1,19 @@
 plugins {
     id 'fabric-loom' version '1.9-SNAPSHOT' apply(false)
-    id 'net.neoforged.moddev.legacyforge' version '2.0.140' apply(false)
+    id 'net.neoforged.moddev' version '2.0.141' apply(false)
 }
 
 def getAppVersion = { ->
     try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
+        def result = providers.exec {
             commandLine 'git', 'tag', '--points-at', 'HEAD'
-            standardOutput = stdout
         }
-        def tag = stdout.toString().trim()
-        if (tag.isEmpty()) {
-            return rootProject.minecraft_version + "-SNAPSHOT"
-        }
-        return tag
+        def tag = result.standardOutput.asText.get().trim()
+        if (tag.isEmpty()) return "0.0.0-SNAPSHOT"
+        return tag.split('\\+')[0]
     } catch (Exception e) {
         println "Warning: ${e.message}, is git installed?"
-        return rootProject.minecraft_version + "-DEV"
+        return "0.0.0-DEV"
     }
 } as Object
 

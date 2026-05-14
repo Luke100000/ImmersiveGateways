@@ -5,6 +5,7 @@ import net.conczin.immersive_gateways.Sounds;
 import net.conczin.immersive_gateways.data.PortalDataManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.network.chat.Component;
@@ -267,8 +268,8 @@ public class GatewayBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
 
         if (this.level != null && this.level.isClientSide()) {
             color = tag.getInt("Color");
@@ -281,7 +282,7 @@ public class GatewayBlockEntity extends BlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = new CompoundTag();
         tag.put("Color", IntTag.valueOf(color));
         return tag;

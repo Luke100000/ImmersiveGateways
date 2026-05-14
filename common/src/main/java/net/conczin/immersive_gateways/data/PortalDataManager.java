@@ -7,6 +7,7 @@ import net.conczin.immersive_gateways.Common;
 import net.conczin.immersive_gateways.Utils;
 import net.conczin.immersive_gateways.config.Config;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
@@ -20,6 +21,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -50,7 +52,7 @@ public class PortalDataManager {
     }
 
     public static PortalDataLookup getState(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(PortalDataLookup::load, PortalDataLookup::new, "immersive_gateways");
+        return level.getDataStorage().computeIfAbsent(PortalDataLookup.factory(), "immersive_gateways");
     }
 
     /**
@@ -155,7 +157,7 @@ public class PortalDataManager {
                     .map(t -> t.stream().map(Holder::value).toList())
                     .orElse(List.of());
 
-            ResourceLocation biomeName = biome.unwrapKey().map(ResourceKey::location).orElse(new ResourceLocation("minecraft:unknown"));
+            ResourceLocation biomeName = biome.unwrapKey().map(ResourceKey::location).orElse(ResourceLocation.parse("minecraft:unknown"));
             Common.LOGGER.info("No structure found for biome {}, using default plains structures.", biomeName);
         }
 
@@ -278,7 +280,7 @@ public class PortalDataManager {
 
     private static int getColor(ServerLevel level, BlockPos pos) {
         Holder<Biome> biome = level.getBiome(pos);
-        ResourceLocation resourceLocation = biome.unwrapKey().map(ResourceKey::location).orElse(new ResourceLocation("minecraft:plains"));
+        ResourceLocation resourceLocation = biome.unwrapKey().map(ResourceKey::location).orElse(ResourceLocation.parse("minecraft:plains"));
         if (!Config.getInstance().colors.containsKey(resourceLocation.toString())) {
             Common.LOGGER.info("Biome {} not found in color config, using default foliage color.", resourceLocation);
         }
@@ -289,7 +291,11 @@ public class PortalDataManager {
         final Set<PortalPair> portals = new HashSet<>();
         final Map<Long, Set<PortalPair>> lookup = new HashMap<>();
 
-        public static PortalDataLookup load(CompoundTag nbt) {
+        public static SavedData.Factory<PortalDataLookup> factory() {
+            return new SavedData.Factory<>(PortalDataLookup::new, PortalDataLookup::load, DataFixTypes.SAVED_DATA_MAP_DATA);
+        }
+
+        public static PortalDataLookup load(CompoundTag nbt, HolderLookup.Provider registries) {
             PortalDataLookup c = new PortalDataLookup();
             for (String key : nbt.getAllKeys()) {
                 PortalPair pair = PortalPair.load(nbt.get(key));
@@ -300,7 +306,7 @@ public class PortalDataManager {
         }
 
         @Override
-        public CompoundTag save(CompoundTag nbt) {
+        public CompoundTag save(CompoundTag nbt, HolderLookup.Provider registries) {
             int index = 0;
             for (PortalPair pair : portals) {
                 nbt.put(String.valueOf(index), pair.save());

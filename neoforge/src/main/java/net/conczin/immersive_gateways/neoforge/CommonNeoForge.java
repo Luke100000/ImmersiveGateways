@@ -1,17 +1,18 @@
-package net.conczin.immersive_gateways.forge;
+package net.conczin.immersive_gateways.neoforge;
 
 import net.conczin.immersive_gateways.Common;
 import net.conczin.immersive_gateways.GatewayDebugCommands;
 import net.conczin.immersive_gateways.block.GatewayExecutorController;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
 @Mod(Common.MOD_ID)
-@Mod.EventBusSubscriber(modid = Common.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
-public class CommonForge {
+@EventBusSubscriber(modid = Common.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
+public class CommonNeoForge {
     @SubscribeEvent
     public static void handleServerAboutToStart(ServerAboutToStartEvent event) {
         GatewayExecutorController.reset();

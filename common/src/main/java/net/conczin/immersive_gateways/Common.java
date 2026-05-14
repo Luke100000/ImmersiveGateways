@@ -11,7 +11,7 @@ public class Common {
     public static final Logger LOGGER = LogManager.getLogger();
 
     public static ResourceLocation locate(String name) {
-        return new ResourceLocation(MOD_ID, name);
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, name);
     }
 
     public static void init() {
