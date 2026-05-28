@@ -8,5 +8,6 @@
   "immersive_gateways.command.dimension_mismatch": "Gateway start is in another dimension. Run /gateway start here first.",
   "immersive_gateways.command.finish": "Added gateway connection.",
   "immersive_gateways.command.detect_missing": "No saved gateway connection for %s.",
-  "immersive_gateways.command.detect": "Gateway at %s points to %s."
+  "immersive_gateways.command.detect": "Gateway at %s points to %s.",
+  "immersive_gateways.outside_world_border": "The destination is outside the world border."
 }

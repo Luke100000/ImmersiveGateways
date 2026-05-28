@@ -213,6 +213,13 @@ public class GatewayBlockEntity extends BlockEntity {
         // Find a safe position to teleport
         PortalDataManager.Portal portal = pair.getTarget(pos);
         BlockPos targetPos = portal.getSafePosition(level);
+
+        // Check if the destination is within the world border
+        if (!level.getWorldBorder().isWithinBounds(targetPos)) {
+            entity.sendSystemMessage(Component.translatable("immersive_gateways.outside_world_border"));
+            return;
+        }
+
         double portalCenterX = (portal.boundingBox().maxX() + portal.boundingBox().minX()) / 2.0;
         double portalCenterZ = (portal.boundingBox().maxZ() + portal.boundingBox().minZ()) / 2.0;
         double deltaX = portalCenterX - targetPos.getX();
