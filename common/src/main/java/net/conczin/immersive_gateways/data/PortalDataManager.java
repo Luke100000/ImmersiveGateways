@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.conczin.immersive_gateways.Blocks;
 import net.conczin.immersive_gateways.Common;
+import net.conczin.immersive_gateways.compat.StructurifyCompat;
 import net.conczin.immersive_gateways.Utils;
 import net.conczin.immersive_gateways.config.Config;
 import net.minecraft.core.BlockPos;
@@ -123,6 +124,11 @@ public class PortalDataManager {
             return null;
         }
 
+        // Respect Structurify's global structure disable
+        if (StructurifyCompat.areAllStructuresDisabled()) {
+            return null;
+        }
+
         // Prevent generating outside the world border
         if (checkWorldBorder && !level.getWorldBorder().isWithinBounds(pos)) {
             return null;
@@ -163,6 +169,11 @@ public class PortalDataManager {
             ResourceLocation biomeName = biome.unwrapKey().map(ResourceKey::location).orElse(new ResourceLocation("minecraft:unknown"));
             Common.LOGGER.info("No structure found for biome {}, using default plains structures.", biomeName);
         }
+
+        // Respect Structurify's per-structure disable
+        structures = structures.stream()
+                .filter(s -> !StructurifyCompat.isStructureDisabled(registry.getKey(s)))
+                .toList();
 
         if (structures.isEmpty()) {
             return null;

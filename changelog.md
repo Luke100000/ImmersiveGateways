@@ -1,6 +1,7 @@
 # 0.0.6
 
 * Prevent gateways outside the world border
+* Added structurify compat
 
 # 0.0.5
 
