@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.conczin.immersive_gateways.Blocks;
 import net.conczin.immersive_gateways.Common;
+import net.conczin.immersive_gateways.compat.StructurifyCompat;
 import net.conczin.immersive_gateways.Utils;
 import net.conczin.immersive_gateways.config.Config;
 import net.minecraft.core.BlockPos;
@@ -84,7 +85,7 @@ public class PortalDataManager {
                 );
 
                 // Real resolved position
-                BlockPos realTarget = placeStructure(level, target, attempt >= SEARCH_ATTEMPTS - SEARCH_FALLBACK_ATTEMPTS, attempt != SEARCH_ATTEMPTS - 1);
+                BlockPos realTarget = placeStructure(level, target, attempt >= SEARCH_ATTEMPTS - SEARCH_FALLBACK_ATTEMPTS, attempt != SEARCH_ATTEMPTS - 1, attempt != SEARCH_ATTEMPTS - 1);
                 if (realTarget != null) {
                     target = realTarget;
                     break;
@@ -119,9 +120,19 @@ public class PortalDataManager {
         state.add(pair);
     }
 
-    public static BlockPos placeStructure(ServerLevel level, BlockPos pos, boolean useFallback, boolean checkInhabitedTime) {
+    public static BlockPos placeStructure(ServerLevel level, BlockPos pos, boolean useFallback, boolean checkInhabitedTime, boolean checkWorldBorder) {
         Registry<Structure> registry = level.registryAccess().registry(Registries.STRUCTURE).orElse(null);
         if (registry == null) {
+            return null;
+        }
+
+        // Respect Structurify's global structure disable
+        if (StructurifyCompat.areAllStructuresDisabled()) {
+            return null;
+        }
+
+        // Prevent generating outside the world border
+        if (checkWorldBorder && !level.getWorldBorder().isWithinBounds(pos)) {
             return null;
         }
 
@@ -160,6 +171,11 @@ public class PortalDataManager {
             ResourceLocation biomeName = biome.unwrapKey().map(ResourceKey::location).orElse(ResourceLocation.parse("minecraft:unknown"));
             Common.LOGGER.info("No structure found for biome {}, using default plains structures.", biomeName);
         }
+
+        // Respect Structurify's per-structure disable
+        structures = structures.stream()
+                .filter(s -> !StructurifyCompat.isStructureDisabled(registry.getKey(s)))
+                .toList();
 
         if (structures.isEmpty()) {
             return null;
