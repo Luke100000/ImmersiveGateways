@@ -45,6 +45,12 @@ public class PortalDataManager {
     private static final int TOO_CLOSE_CHUNKS = 2;
     private static final int CHUNK_LOAD_ATTEMPTS = 7;
     private static final long CHUNK_RETRY_BASE_DELAY_MS = 50L;
+    private static final int CHUNK_TICKET_LIFETIME_TICKS = 20 * 30;
+    private static final TicketType<ChunkPos> GATEWAY_GENERATION_TICKET = TicketType.create(
+            "immersive_gateways_generation",
+            Comparator.comparingLong(ChunkPos::toLong),
+            CHUNK_TICKET_LIFETIME_TICKS
+    );
 
     private static final RandomSource random = RandomSource.createThreadSafe();
 
@@ -311,6 +317,12 @@ public class PortalDataManager {
         int attempts = 0;
         while (true) {
             try {
+                // The UNKNOWN ticket added by getChunkFuture expires after one tick.
+                onServer(level, () -> {
+                    level.getChunkSource().addRegionTicket(GATEWAY_GENERATION_TICKET, pos, 0, pos);
+                    return null;
+                });
+
                 ChunkAccess chunk = level.getChunkSource()
                         .getChunkFuture(pos.x, pos.z, ChunkStatus.FULL, true)
                         .join()
