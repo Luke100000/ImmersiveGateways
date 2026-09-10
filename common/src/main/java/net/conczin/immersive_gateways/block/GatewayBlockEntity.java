@@ -174,7 +174,11 @@ public class GatewayBlockEntity extends BlockEntity {
             GatewayExecutorController.submit(() -> {
                 try {
                     PortalDataManager.PortalPair pair = PortalDataManager.search(level, pos, true);
-                    applyPortalColor(level, pos, blockEntity, pair);
+                    level.getServer().execute(() -> {
+                        if (!blockEntity.isRemoved() && blockEntity.getLevel() == level) {
+                            applyPortalColor(level, pos, blockEntity, pair);
+                        }
+                    });
                 } catch (Throwable t) {
                     throw new RuntimeException("Exception in searcher thread", t);
                 }
