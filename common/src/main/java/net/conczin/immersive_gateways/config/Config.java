@@ -23,6 +23,7 @@ public final class Config extends JsonConfig {
     public int minDistance = 1024;
     public int maxDistance = 8096;
     public boolean onlyPlayersCanTeleport = true;
+    public boolean generatePortalsAutomatically = true;
 
     public Map<String, Integer> colors = Map.<String, Integer>ofEntries(
             Map.entry("minecraft:plains", 0x7fb238),

@@ -4,8 +4,8 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.conczin.immersive_gateways.Blocks;
 import net.conczin.immersive_gateways.Common;
-import net.conczin.immersive_gateways.compat.StructurifyCompat;
 import net.conczin.immersive_gateways.Utils;
+import net.conczin.immersive_gateways.compat.StructurifyCompat;
 import net.conczin.immersive_gateways.config.Config;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -25,16 +25,14 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.*;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * Manages portal data storage and searching.
@@ -45,6 +43,8 @@ public class PortalDataManager {
     private static final long SEARCH_ATTEMPTS = 16;
     private static final long SEARCH_FALLBACK_ATTEMPTS = 5;
     private static final int TOO_CLOSE_CHUNKS = 2;
+    private static final int CHUNK_LOAD_ATTEMPTS = 7;
+    private static final long CHUNK_RETRY_BASE_DELAY_MS = 50L;
 
     private static final RandomSource random = RandomSource.createThreadSafe();
 
@@ -60,7 +60,7 @@ public class PortalDataManager {
      * Searches for a portal destination at the given position, or creates a new one if none is found.
      */
     public static PortalPair search(ServerLevel level, BlockPos pos, boolean generate) {
-        PortalDataLookup state = getState(level);
+        PortalDataLookup state = onServer(level, () -> getState(level));
 
         // Check if a known portal is nearby
         PortalPair portal = state.search(pos);
@@ -97,7 +97,11 @@ public class PortalDataManager {
                     new Portal(estimateBoundingBox(level, pos), getColor(level, pos)),
                     new Portal(estimateBoundingBox(level, target), getColor(level, target))
             );
-            state.add(portal);
+            PortalPair createdPortal = portal;
+            onServer(level, () -> {
+                state.add(createdPortal);
+                return null;
+            });
 
             // Logging
             long delta = System.currentTimeMillis() - t;
@@ -108,7 +112,7 @@ public class PortalDataManager {
     }
 
     public static void addManualConnection(ServerLevel level, BlockPos first, BlockPos second) {
-        PortalDataLookup state = getState(level);
+        PortalDataLookup state = onServer(level, () -> getState(level));
         state.remove(first);
         state.remove(second);
 
@@ -137,13 +141,13 @@ public class PortalDataManager {
         }
 
         // Prevent nuking player builds
-        ChunkAccess chunk = level.getChunk(pos);
+        ChunkAccess chunk = getChunkWithRetry(level, pos);
         if (checkInhabitedTime && chunk.getInhabitedTime() > MAX_INHABITED_TIME) {
             return null;
         }
 
         // Prevent generating in already linked areas
-        PortalDataLookup state = getState(level);
+        PortalDataLookup state = onServer(level, () -> getState(level));
         for (int x = -TOO_CLOSE_CHUNKS; x <= TOO_CLOSE_CHUNKS; x++) {
             for (int z = -TOO_CLOSE_CHUNKS; z <= TOO_CLOSE_CHUNKS; z++) {
                 PortalPair pair = state.search(pos.offset(x * 16, 0, z * 16));
@@ -200,23 +204,24 @@ public class PortalDataManager {
         // Generate
         if (structureStart.isValid()) {
             BoundingBox boundingbox = structureStart.getBoundingBox();
-            Utils.getChunksInBoundingBox(boundingbox).forEach((chunkPos) ->
-                    level.getServer().executeBlocking(() -> structureStart.placeInChunk(
-                            level,
-                            level.structureManager(),
-                            chunkgenerator,
-                            random,
-                            new BoundingBox(
-                                    chunkPos.getMinBlockX(),
-                                    level.getMinBuildHeight(),
-                                    chunkPos.getMinBlockZ(),
-                                    chunkPos.getMaxBlockX(),
-                                    level.getMaxBuildHeight(),
-                                    chunkPos.getMaxBlockZ()
-                            ),
-                            chunkPos
-                    ))
-            );
+            Utils.getChunksInBoundingBox(boundingbox).forEach((chunkPos) -> {
+                getChunkWithRetry(level, chunkPos);
+                level.getServer().executeBlocking(() -> structureStart.placeInChunk(
+                        level,
+                        level.structureManager(),
+                        chunkgenerator,
+                        random,
+                        new BoundingBox(
+                                chunkPos.getMinBlockX(),
+                                level.getMinBuildHeight(),
+                                chunkPos.getMinBlockZ(),
+                                chunkPos.getMaxBlockX(),
+                                level.getMaxBuildHeight(),
+                                chunkPos.getMaxBlockZ()
+                        ),
+                        chunkPos
+                ));
+            });
             return findBlockInArea(level, boundingbox);
         }
         return null;
@@ -270,7 +275,7 @@ public class PortalDataManager {
     private static BlockPos findBlockInArea(ServerLevel level, BoundingBox box) {
         BlockPos.MutableBlockPos gatewayPos = new BlockPos.MutableBlockPos();
         for (ChunkPos chunkPos : Utils.getChunksInBoundingBox(box).toList()) {
-            LevelChunk chunk = level.getChunk(chunkPos.x, chunkPos.z);
+            LevelChunk chunk = getChunkWithRetry(level, chunkPos);
             for (int cy = 0; cy < chunk.getSectionsCount(); cy++) {
                 LevelChunkSection section = chunk.getSection(cy);
                 if (section.hasOnlyAir()) continue;
@@ -292,6 +297,58 @@ public class PortalDataManager {
             }
         }
         return null;
+    }
+
+    private static ChunkAccess getChunkWithRetry(ServerLevel level, BlockPos pos) {
+        return getChunkWithRetry(level, new ChunkPos(pos));
+    }
+
+    private static LevelChunk getChunkWithRetry(ServerLevel level, ChunkPos pos) {
+        if (level.getServer().isSameThread()) {
+            throw new IllegalStateException("Gateway chunks must be loaded from the searcher thread");
+        }
+
+        int attempts = 0;
+        while (true) {
+            try {
+                ChunkAccess chunk = level.getChunkSource()
+                        .getChunkFuture(pos.x, pos.z, ChunkStatus.FULL, true)
+                        .join()
+                        .left()
+                        .orElseThrow(() -> new RetryableChunkLoadException(pos));
+                return (LevelChunk) chunk;
+            } catch (RetryableChunkLoadException exception) {
+                if (++attempts >= CHUNK_LOAD_ATTEMPTS) {
+                    throw exception;
+                }
+
+                long retryDelayMs = CHUNK_RETRY_BASE_DELAY_MS << (attempts - 1);
+                Common.LOGGER.warn(
+                        "Failed to load gateway chunk {}, retrying in {} ms (attempt {}/{})",
+                        pos, retryDelayMs, attempts + 1, CHUNK_LOAD_ATTEMPTS
+                );
+                try {
+                    //noinspection BusyWait
+                    Thread.sleep(retryDelayMs);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for gateway chunk " + pos, interrupted);
+                }
+            }
+        }
+    }
+
+    private static final class RetryableChunkLoadException extends IllegalStateException {
+        private RetryableChunkLoadException(ChunkPos pos) {
+            super("Chunk not there when requested: " + pos);
+        }
+    }
+
+    private static <T> T onServer(ServerLevel level, Supplier<T> action) {
+        if (level.getServer().isSameThread()) {
+            return action.get();
+        }
+        return level.getServer().submit(action).join();
     }
 
     private static int getColor(ServerLevel level, BlockPos pos) {

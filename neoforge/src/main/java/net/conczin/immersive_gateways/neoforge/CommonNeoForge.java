@@ -1,7 +1,7 @@
 package net.conczin.immersive_gateways.neoforge;
 
 import net.conczin.immersive_gateways.Common;
-import net.conczin.immersive_gateways.GatewayDebugCommands;
+import net.conczin.immersive_gateways.GatewayCommands;
 import net.conczin.immersive_gateways.block.GatewayExecutorController;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -16,17 +16,17 @@ public class CommonNeoForge {
     @SubscribeEvent
     public static void handleServerAboutToStart(ServerAboutToStartEvent event) {
         GatewayExecutorController.reset();
-        GatewayDebugCommands.reset();
+        GatewayCommands.reset();
     }
 
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
-        GatewayDebugCommands.register(event.getDispatcher());
+        GatewayCommands.register(event.getDispatcher());
     }
 
     @SubscribeEvent
     public static void handleServerStopping(ServerStoppingEvent event) {
         GatewayExecutorController.shutdown();
-        GatewayDebugCommands.reset();
+        GatewayCommands.reset();
     }
 }

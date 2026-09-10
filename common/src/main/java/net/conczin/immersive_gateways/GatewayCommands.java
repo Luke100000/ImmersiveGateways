@@ -1,6 +1,7 @@
 package net.conczin.immersive_gateways;
 
 import com.mojang.brigadier.CommandDispatcher;
+import net.conczin.immersive_gateways.config.Config;
 import net.conczin.immersive_gateways.data.PortalDataManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -23,12 +24,15 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class GatewayDebugCommands {
+public class GatewayCommands {
     private static final Map<UUID, PendingStart> STARTS = new ConcurrentHashMap<>();
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("gateway")
                 .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("automatic_generation")
+                        .then(Commands.literal("on").executes(context -> setAutomaticGeneration(context.getSource(), true)))
+                        .then(Commands.literal("off").executes(context -> setAutomaticGeneration(context.getSource(), false))))
                 .then(Commands.literal("start").executes(context -> start(context.getSource())))
                 .then(Commands.literal("finish").executes(context -> finish(context.getSource())))
                 .then(Commands.literal("detect").executes(context -> detect(context.getSource()))));
@@ -36,6 +40,17 @@ public class GatewayDebugCommands {
 
     public static void reset() {
         STARTS.clear();
+    }
+
+    private static int setAutomaticGeneration(CommandSourceStack source, boolean enabled) {
+        Config config = Config.getInstance();
+        config.generatePortalsAutomatically = enabled;
+        config.save();
+        source.sendSuccess(() -> Component.translatable(
+                "immersive_gateways.command.automatic_generation",
+                Component.translatable(enabled ? "options.on" : "options.off")
+        ), true);
+        return 1;
     }
 
     private static int start(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

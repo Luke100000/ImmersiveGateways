@@ -1,3 +1,9 @@
+# 0.0.7
+
+* Added `generatePortalsAutomatically` command and config to toggle automatic portal generation
+* Fixed desyncs when teleporting on a vehicle
+* Fixed concurrent access, race conditions, and chunk errors
+
 # 0.0.6
 
 * Prevent gateways outside the world border

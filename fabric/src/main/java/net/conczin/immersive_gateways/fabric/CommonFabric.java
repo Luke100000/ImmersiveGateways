@@ -20,13 +20,13 @@ public class CommonFabric implements ModInitializer {
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             GatewayExecutorController.reset();
-            GatewayDebugCommands.reset();
+            GatewayCommands.reset();
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             GatewayExecutorController.shutdown();
-            GatewayDebugCommands.reset();
+            GatewayCommands.reset();
         });
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> GatewayDebugCommands.register(dispatcher));
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> GatewayCommands.register(dispatcher));
 
         registerHelper(BuiltInRegistries.ITEM, Items::registerItems);
         registerHelper(BuiltInRegistries.BLOCK, Blocks::registerBlocks);
