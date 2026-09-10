@@ -7,11 +7,7 @@ import net.conczin.immersive_gateways.Common;
 import net.conczin.immersive_gateways.Utils;
 import net.conczin.immersive_gateways.compat.StructurifyCompat;
 import net.conczin.immersive_gateways.config.Config;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.SectionPos;
+import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -25,7 +21,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.chunk.*;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
@@ -314,7 +314,6 @@ public class PortalDataManager {
                 ChunkAccess chunk = level.getChunkSource()
                         .getChunkFuture(pos.x, pos.z, ChunkStatus.FULL, true)
                         .join()
-                        .left()
                         .orElseThrow(() -> new RetryableChunkLoadException(pos));
                 return (LevelChunk) chunk;
             } catch (RetryableChunkLoadException exception) {
