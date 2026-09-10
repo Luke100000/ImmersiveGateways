@@ -1,3 +1,7 @@
+# 0.0.7
+
+* Added `generatePortalsAutomatically` command and config to toggle automatic portal generation
+
 # 0.0.6
 
 * Prevent gateways outside the world border

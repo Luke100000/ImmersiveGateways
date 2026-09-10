@@ -2,6 +2,7 @@ package net.conczin.immersive_gateways.block;
 
 import net.conczin.immersive_gateways.BlockEntityTypes;
 import net.conczin.immersive_gateways.Sounds;
+import net.conczin.immersive_gateways.config.Config;
 import net.conczin.immersive_gateways.data.PortalDataManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -166,7 +167,7 @@ public class GatewayBlockEntity extends BlockEntity {
 
     public static void serverTick(ServerLevel level, BlockPos pos, @SuppressWarnings("unused") BlockState state, GatewayBlockEntity blockEntity) {
         // If the color is not set yet, lazily search for the second portal
-        if (blockEntity.color == 0) {
+        if (blockEntity.color == 0 && Config.getInstance().generatePortalsAutomatically) {
             blockEntity.color = 1;
 
             // Fetch color and generate a portal if it does not exist
@@ -201,7 +202,9 @@ public class GatewayBlockEntity extends BlockEntity {
         // Find exist
         PortalDataManager.PortalPair pair = PortalDataManager.search(level, pos, false);
         if (pair == null) {
-            entity.sendSystemMessage(Component.translatable("immersive_gateways.not_loaded_yet"));
+            entity.sendSystemMessage(Component.translatable(Config.getInstance().generatePortalsAutomatically
+                    ? "immersive_gateways.not_loaded_yet"
+                    : "immersive_gateways.automatic_generation_disabled"));
             return;
         }
 
