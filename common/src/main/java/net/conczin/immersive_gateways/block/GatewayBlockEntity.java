@@ -21,11 +21,12 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
-import net.minecraft.world.entity.RelativeMovement;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
 import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3d;
@@ -198,8 +199,8 @@ public class GatewayBlockEntity extends BlockEntity {
     }
 
     private static void playSound(Level level, BlockPos pos, SoundEvent sound) {
-        float volume = level.random.nextFloat() * 0.1f + 0.1f;
-        float pitch = level.random.nextFloat() * 0.4f + 0.8f;
+        float volume = level.getRandom().nextFloat() * 0.1f + 0.1f;
+        float pitch = level.getRandom().nextFloat() * 0.4f + 0.8f;
         level.playLocalSound(pos.getX(), pos.getY(), pos.getZ(), sound, SoundSource.BLOCKS, volume, pitch, false);
     }
 
@@ -207,9 +208,11 @@ public class GatewayBlockEntity extends BlockEntity {
         // Find exist
         PortalDataManager.PortalPair pair = PortalDataManager.search(level, pos, false);
         if (pair == null) {
-            entity.sendSystemMessage(Component.translatable(Config.getInstance().generatePortalsAutomatically
-                    ? "immersive_gateways.not_loaded_yet"
-                    : "immersive_gateways.automatic_generation_disabled"));
+            if (entity instanceof Player player) {
+                player.sendSystemMessage(Component.translatable(Config.getInstance().generatePortalsAutomatically
+                        ? "immersive_gateways.not_loaded_yet"
+                        : "immersive_gateways.automatic_generation_disabled"));
+            }
             return;
         }
 
@@ -224,7 +227,9 @@ public class GatewayBlockEntity extends BlockEntity {
 
         // Check if the destination is within the world border
         if (!level.getWorldBorder().isWithinBounds(targetPos)) {
-            entity.sendSystemMessage(Component.translatable("immersive_gateways.outside_world_border"));
+            if (entity instanceof Player player) {
+                player.sendSystemMessage(Component.translatable("immersive_gateways.outside_world_border"));
+            }
             return;
         }
 
@@ -254,15 +259,10 @@ public class GatewayBlockEntity extends BlockEntity {
         if (!Level.isInSpawnableBounds(pos)) return;
 
         // Relative movement flags for absolute teleport
-        Set<RelativeMovement> flags = EnumSet.noneOf(RelativeMovement.class);
-        flags.add(RelativeMovement.X);
-        flags.add(RelativeMovement.Y);
-        flags.add(RelativeMovement.Z);
-        flags.add(RelativeMovement.X_ROT);
-        flags.add(RelativeMovement.Y_ROT);
+        Set<Relative> flags = EnumSet.noneOf(Relative.class);
 
         // Teleport entity
-        if (entity.teleportTo(level, x, y, z, flags, Mth.wrapDegrees(yaw), Mth.wrapDegrees(pitch))) {
+        if (entity.teleportTo(level, x, y, z, flags, Mth.wrapDegrees(yaw), Mth.wrapDegrees(pitch), false)) {
             // Reset Y motion if not flying
             if (!(entity instanceof LivingEntity living) || !living.isFallFlying()) {
                 entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, 0.0, 1.0));
@@ -282,11 +282,11 @@ public class GatewayBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
 
         if (this.level != null && this.level.isClientSide()) {
-            color = tag.getInt("Color");
+            color = input.getIntOr("Color", 0);
         }
     }
 

@@ -1,6 +1,8 @@
 package net.conczin.immersive_gateways;
 
 import net.conczin.immersive_gateways.block.GatewayBlock;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -17,7 +19,7 @@ public interface Blocks {
 
 
     static BlockBehaviour.Properties baseProps() {
-        return BlockBehaviour.Properties.of();
+        return BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, Common.locate("gateway")));
     }
 
     static void registerBlocks(Common.RegisterHelper<Block> helper) {

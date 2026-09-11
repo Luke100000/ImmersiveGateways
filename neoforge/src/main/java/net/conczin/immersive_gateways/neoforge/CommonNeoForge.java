@@ -11,7 +11,7 @@ import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
 @Mod(Common.MOD_ID)
-@EventBusSubscriber(modid = Common.MOD_ID, bus = EventBusSubscriber.Bus.GAME)
+@EventBusSubscriber(modid = Common.MOD_ID)
 public class CommonNeoForge {
     @SubscribeEvent
     public static void handleServerAboutToStart(ServerAboutToStartEvent event) {

@@ -2,7 +2,7 @@ package net.conczin.immersive_gateways;
 
 import net.conczin.immersive_gateways.block.GatewayBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -12,7 +12,7 @@ public class BlockEntityTypes {
     public static BlockEntityType<GatewayBlockEntity> GATEWAY;
 
     public interface TriFunction<E extends BlockEntity> {
-        BlockEntityType<E> apply(ResourceLocation name, BlockEntitySupplier<E> constructor, Block block);
+        BlockEntityType<E> apply(Identifier name, BlockEntitySupplier<E> constructor, Block block);
     }
 
     public interface BlockEntitySupplier<T extends BlockEntity> {

@@ -13,7 +13,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 import java.util.function.Consumer;
 
-@EventBusSubscriber(modid = Common.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Common.MOD_ID)
 public class CommonNeoForgeModBus {
     private static <T> void registerHelper(RegisterEvent event, Registry<T> register, Consumer<Common.RegisterHelper<T>> consumer) {
         event.register(
@@ -31,8 +31,7 @@ public class CommonNeoForgeModBus {
         if (event.getRegistryKey() == Registries.BLOCK_ENTITY_TYPE) {
             event.register(Registries.BLOCK_ENTITY_TYPE, helper ->
                     BlockEntityTypes.register((name, factory, block) -> {
-                        //noinspection DataFlowIssue
-                        BlockEntityType<?> build = BlockEntityType.Builder.of(factory::create, block).build(null);
+                        BlockEntityType<?> build = new BlockEntityType<>(factory::create, block);
                         helper.register(name, build);
                         return build;
                     }));

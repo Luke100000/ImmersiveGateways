@@ -88,7 +88,7 @@ public class GatewayItem extends Item {
 
         // Otherwise place gateways in the chosen direction
         for (int i = 0; i < 8; i++) {
-            pos = pos.offset(direction.getNormal());
+            pos = pos.offset(direction.getUnitVec3i());
             BlockState state = level.getBlockState(pos);
             if (state.isAir()) {
                 BlockState blockState = Blocks.GATEWAY.defaultBlockState().setValue(GatewayBlock.AXIS, axis);

@@ -5,20 +5,26 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.conczin.immersive_gateways.Common;
 import net.conczin.immersive_gateways.IrisCompat;
 import net.conczin.immersive_gateways.Utils;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.AbstractEndPortalRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.blockentity.TheEndPortalRenderer;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.Vec3;
 import org.joml.*;
 import org.joml.Math;
+import org.jspecify.annotations.Nullable;
 
-public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements BlockEntityRenderer<T> {
-    public static final ResourceLocation BLANK_LOCATION = Common.locate("textures/entity/white.png");
+public class GatewayBlockEntityRenderer implements BlockEntityRenderer<GatewayBlockEntity, GatewayBlockEntityRenderer.GatewayRenderState> {
+    public static final Identifier BLANK_LOCATION = Common.locate("textures/entity/white.png");
 
     public static final Vector3f[] NORMALS = new Vector3f[]{
             new Vector3f(0.0f, 0.0f, -1.0f),
@@ -34,19 +40,48 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
         // NO-OP
     }
 
-    public void render(T blockEntity, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int packedOverlay) {
-        renderRuneCube(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, 0);
-        renderRuneCube(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, 1);
-        renderRuneCube(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, 2);
-        renderRuneCube(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, 3);
+    @Override
+    public GatewayRenderState createRenderState() {
+        return new GatewayRenderState();
     }
 
-    private void renderRuneCube(T blockEntity, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int packedOverlay, int face) {
-        BlockPos blockPos = blockEntity.getBlockPos();
-        Vector3d position = blockEntity.getPosition(blockPos, blockEntity.getBlockState(), face);
+    @Override
+    public void extractRenderState(
+            GatewayBlockEntity blockEntity,
+            GatewayRenderState state,
+            float partialTick,
+            Vec3 cameraPosition,
+            ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress
+    ) {
+        BlockEntityRenderer.super.extractRenderState(blockEntity, state, partialTick, cameraPosition, breakProgress);
+        state.partialTick = partialTick;
+        state.color = blockEntity.getColor();
+        state.defaultClockTime = blockEntity.getLevel() == null ? 0L : blockEntity.getLevel().getDefaultClockTime();
+
+        for (int i = 0; i < 4; i++) {
+            state.positions[i].set(blockEntity.getPosition(blockEntity.getBlockPos(), blockEntity.getBlockState(), i));
+            state.lastTime[i] = blockEntity.lastTime[i];
+            state.time[i] = blockEntity.time[i];
+            state.offsets1[i].set(blockEntity.offsets1[i]);
+            state.offsets2[i].set(blockEntity.offsets2[i]);
+            state.rotations[i].set(blockEntity.rotations[i]);
+        }
+    }
+
+    @Override
+    public void submit(GatewayRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState camera) {
+        renderRuneCube(state, poseStack, submitNodeCollector, 0);
+        renderRuneCube(state, poseStack, submitNodeCollector, 1);
+        renderRuneCube(state, poseStack, submitNodeCollector, 2);
+        renderRuneCube(state, poseStack, submitNodeCollector, 3);
+    }
+
+    private void renderRuneCube(GatewayRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int face) {
+        BlockPos blockPos = state.blockPos;
+        Vector3d position = state.positions[face];
 
         float blinkDuration = 0.2f;
-        float f = blockEntity.lastTime[face] * (1.0f - partialTick) + blockEntity.time[face] * partialTick;
+        float f = state.lastTime[face] * (1.0f - state.partialTick) + state.time[face] * state.partialTick;
         float f2 = 1.0f - Math.min(1.0f, f / (1.0f - blinkDuration));
 
         if (f <= 0.0) {
@@ -56,14 +91,14 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
         // Smooth position
         Vector3f offset = Utils.calculateQuadraticBezier(
                 new Vector3f(0.0f, 0.0f, 0.0f),
-                blockEntity.offsets1[face],
-                blockEntity.offsets2[face],
+                state.offsets1[face],
+                state.offsets2[face],
                 f2
         );
 
         // Rotation
         Quaternionf rotation = new Quaternionf();
-        rotation.slerp(blockEntity.rotations[face], f2);
+        rotation.slerp(state.rotations[face], f2);
 
         float size = 0.25f * Math.sqrt(f);
         float brightness = Math.max(0.0f, 1.0f - Math.abs(1.0f - blinkDuration - f) / blinkDuration);
@@ -79,10 +114,18 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
 
         if (IrisCompat.isShaderPackInUse()) {
             // Iris dies of cringe with the inbuilt end gateway render type and the translucent emissive overlay trick.
-            renderCubeIris(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, blockEntity.getColor());
+            submitNodeCollector.submitCustomGeometry(
+                    poseStack,
+                    RenderTypes.entitySolid(AbstractEndPortalRenderer.END_PORTAL_LOCATION),
+                    (pose, buffer) -> renderCubeIris(state.defaultClockTime, state.partialTick, pose, buffer, state.lightCoords, OverlayTexture.NO_OVERLAY, state.color)
+            );
         } else {
-            this.renderCube(poseStack.last(), buffer.getBuffer(RenderType.endGateway()));
-            this.renderCube(poseStack.last(), buffer.getBuffer(RenderType.entityTranslucentEmissive(BLANK_LOCATION)), packedLight, packedOverlay, brightness, blockEntity.getColor());
+            submitNodeCollector.submitCustomGeometry(poseStack, RenderTypes.endGateway(), this::renderCube);
+            submitNodeCollector.submitCustomGeometry(
+                    poseStack,
+                    RenderTypes.entityTranslucentEmissive(BLANK_LOCATION),
+                    (pose, buffer) -> renderCube(pose, buffer, state.lightCoords, OverlayTexture.NO_OVERLAY, brightness, state.color)
+            );
         }
 
         poseStack.popPose();
@@ -114,9 +157,9 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
     }
 
     private void renderFace(PoseStack.Pose pose, VertexConsumer consumer, float x0, float x1, float y0, float y1, float z0, float z1, float z2, float z3, int face, int light, int overlay, float brightness, int color) {
-        float r = FastColor.ARGB32.red(color) / 255.0f;
-        float g = FastColor.ARGB32.green(color) / 255.0f;
-        float b = FastColor.ARGB32.blue(color) / 255.0f;
+        float r = ARGB.red(color) / 255.0f;
+        float g = ARGB.green(color) / 255.0f;
+        float b = ARGB.blue(color) / 255.0f;
         float a = 0.15f + 0.25f * brightness;
 
         float u = Math.floor(face / 2.0f) * 6.0f;
@@ -140,20 +183,17 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
 
     ///  Iris support
 
-    public void renderCubeIris(GatewayBlockEntity entity, float tickDelta, PoseStack poseStack, MultiBufferSource multiBufferSource, int light, int overlay, int color) {
-        float r = FastColor.ARGB32.red(color) / 255.0f;
-        float g = FastColor.ARGB32.green(color) / 255.0f;
-        float b = FastColor.ARGB32.blue(color) / 255.0f;
+    public void renderCubeIris(long defaultClockTime, float tickDelta, PoseStack.Pose poseState, VertexConsumer vertexConsumer, int light, int overlay, int color) {
+        float r = ARGB.red(color) / 255.0f;
+        float g = ARGB.green(color) / 255.0f;
+        float b = ARGB.blue(color) / 255.0f;
 
-        // POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL
-        VertexConsumer vertexConsumer = multiBufferSource.getBuffer(RenderType.entitySolid(TheEndPortalRenderer.END_PORTAL_LOCATION));
-
-        Matrix4f pose = poseStack.last().pose();
-        Matrix3f normal = poseStack.last().normal();
+        Matrix4f pose = poseState.pose();
+        Matrix3f normal = poseState.normal();
 
         // animation with a period of 100 seconds.
         // note that texture coordinates are wrapping, not clamping.
-        float progress = ((entity.getLevel() == null ? 0 : entity.getLevel().getDayTime() + tickDelta) * 0.05f * 0.01f) % 1f;
+        float progress = ((defaultClockTime + tickDelta) * 0.05f * 0.01f) % 1f;
         float topHeight = 1.0f;
         float bottomHeight = -1.0f;
 
@@ -228,5 +268,29 @@ public class GatewayBlockEntityRenderer<T extends GatewayBlockEntity> implements
         vertexConsumer.addVertex(pose, x4, y4, z4).setColor(r, g, b, 1.0f)
                 .setUv(0.1F + progress, 0.0F + progress).setOverlay(overlay).setLight(light)
                 .setNormal(nx, ny, nz);
+    }
+
+    public static class GatewayRenderState extends BlockEntityRenderState {
+        final Vector3d[] positions = createVector3dArray();
+        final Vector3f[] offsets1 = createVector3fArray();
+        final Vector3f[] offsets2 = createVector3fArray();
+        final Quaternionf[] rotations = createQuaternionArray();
+        final float[] lastTime = new float[4];
+        final float[] time = new float[4];
+        float partialTick;
+        int color;
+        long defaultClockTime;
+
+        private static Vector3d[] createVector3dArray() {
+            return new Vector3d[]{new Vector3d(), new Vector3d(), new Vector3d(), new Vector3d()};
+        }
+
+        private static Vector3f[] createVector3fArray() {
+            return new Vector3f[]{new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f()};
+        }
+
+        private static Quaternionf[] createQuaternionArray() {
+            return new Quaternionf[]{new Quaternionf(), new Quaternionf(), new Quaternionf(), new Quaternionf()};
+        }
     }
 }

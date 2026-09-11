@@ -12,8 +12,8 @@ public interface Sounds {
     }
 
     static void registerSounds(Common.RegisterHelper<SoundEvent> helper) {
-        helper.register(ASSEMBLE.getLocation(), ASSEMBLE);
-        helper.register(DISASSEMBLE.getLocation(), DISASSEMBLE);
-        helper.register(GATEWAY.getLocation(), GATEWAY);
+        helper.register(ASSEMBLE.location(), ASSEMBLE);
+        helper.register(DISASSEMBLE.location(), DISASSEMBLE);
+        helper.register(GATEWAY.location(), GATEWAY);
     }
 }

@@ -9,11 +9,8 @@ import net.conczin.immersive_gateways.compat.StructurifyCompat;
 import net.conczin.immersive_gateways.config.Config;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.tags.TagKey;
@@ -26,12 +23,19 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.LevelResource;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -46,11 +50,14 @@ public class PortalDataManager {
     private static final int CHUNK_LOAD_ATTEMPTS = 7;
     private static final long CHUNK_RETRY_BASE_DELAY_MS = 50L;
     private static final int CHUNK_TICKET_LIFETIME_TICKS = 20 * 30;
-    private static final TicketType<ChunkPos> GATEWAY_GENERATION_TICKET = TicketType.create(
-            "immersive_gateways_generation",
-            Comparator.comparingLong(ChunkPos::toLong),
-            CHUNK_TICKET_LIFETIME_TICKS
+    private static final TicketType GATEWAY_GENERATION_TICKET = new TicketType(CHUNK_TICKET_LIFETIME_TICKS, TicketType.FLAG_LOADING);
+    private static final SavedDataType<PortalDataLookup> DATA_TYPE = new SavedDataType<>(
+            Common.locate("immersive_gateways"),
+            PortalDataLookup::new,
+            PortalDataLookup.CODEC,
+            DataFixTypes.SAVED_DATA_MAP_DATA
     );
+    private static final Set<Path> CHECKED_DATA_PATHS = ConcurrentHashMap.newKeySet();
 
     private static final RandomSource random = RandomSource.createThreadSafe();
 
@@ -59,7 +66,36 @@ public class PortalDataManager {
     }
 
     public static PortalDataLookup getState(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(PortalDataLookup.factory(), "immersive_gateways");
+        migrateLegacyData(level);
+        return level.getDataStorage().computeIfAbsent(DATA_TYPE);
+    }
+
+    private static void migrateLegacyData(ServerLevel level) {
+        Path dimensionRoot = DimensionType.getStorageFolder(
+                level.dimension(),
+                level.getServer().getWorldPath(LevelResource.ROOT)
+        );
+        Path dataRoot = dimensionRoot.resolve("data");
+        Path legacyFile = dataRoot.resolve(Common.MOD_ID + ".dat");
+        Path namespacedFile = DATA_TYPE.id().withSuffix(".dat").resolveAgainst(dataRoot);
+        Path checkedPath = namespacedFile.toAbsolutePath().normalize();
+
+        if (!CHECKED_DATA_PATHS.add(checkedPath)) {
+            return;
+        }
+
+        if (!Files.isRegularFile(legacyFile) || Files.exists(namespacedFile)) {
+            return;
+        }
+
+        try {
+            Files.createDirectories(namespacedFile.getParent());
+            Files.copy(legacyFile, namespacedFile);
+            Common.LOGGER.info("Migrated legacy gateway data to {}", namespacedFile);
+        } catch (IOException exception) {
+            CHECKED_DATA_PATHS.remove(checkedPath);
+            throw new IllegalStateException("Failed to migrate legacy gateway data from " + legacyFile, exception);
+        }
     }
 
     /**
@@ -131,7 +167,7 @@ public class PortalDataManager {
     }
 
     public static BlockPos placeStructure(ServerLevel level, BlockPos pos, boolean useFallback, boolean checkInhabitedTime, boolean checkWorldBorder) {
-        Registry<Structure> registry = level.registryAccess().registry(Registries.STRUCTURE).orElse(null);
+        Registry<Structure> registry = level.registryAccess().lookup(Registries.STRUCTURE).orElse(null);
         if (registry == null) {
             return null;
         }
@@ -165,26 +201,29 @@ public class PortalDataManager {
 
         // List all valid structures for target biomes
         Holder<Biome> biome = level.getBiome(pos);
-        List<Structure> structures = registry
-                .stream().filter(s -> {
-                    ResourceLocation key = registry.getKey(s);
-                    return s.biomes().contains(biome) && key != null && key.getNamespace().equals("immersive_gateways");
+        List<? extends Holder<Structure>> structures = registry
+                .listElements().filter(holder -> {
+                    Identifier key = holder.key().identifier();
+                    return holder.value().biomes().contains(biome) && key.getNamespace().equals(Common.MOD_ID);
                 }).toList();
 
         // If not structure works for this biome, use default
         if (structures.isEmpty() && useFallback) {
             TagKey<Structure> structureTagKey = TagKey.create(Registries.STRUCTURE, Common.locate("plains"));
-            structures = registry.getTag(structureTagKey)
-                    .map(t -> t.stream().map(Holder::value).toList())
+            structures = registry.get(structureTagKey)
+                    .map(t -> t.stream().toList())
                     .orElse(List.of());
 
-            ResourceLocation biomeName = biome.unwrapKey().map(ResourceKey::location).orElse(ResourceLocation.parse("minecraft:unknown"));
+            Identifier biomeName = biome.unwrapKey().map(ResourceKey::identifier).orElse(Identifier.parse("minecraft:unknown"));
             Common.LOGGER.info("No structure found for biome {}, using default plains structures.", biomeName);
         }
 
         // Respect Structurify's per-structure disable
         structures = structures.stream()
-                .filter(s -> !StructurifyCompat.isStructureDisabled(registry.getKey(s)))
+                .filter(holder -> holder.unwrapKey()
+                        .map(ResourceKey::identifier)
+                        .map(identifier -> !StructurifyCompat.isStructureDisabled(identifier))
+                        .orElse(true))
                 .toList();
 
         if (structures.isEmpty()) {
@@ -192,16 +231,19 @@ public class PortalDataManager {
         }
 
         // Find the start position
-        Structure structure = structures.get(random.nextInt(structures.size()));
+        Holder<Structure> selected = structures.get(random.nextInt(structures.size()));
+        Structure structure = selected.value();
         ChunkGenerator chunkgenerator = level.getChunkSource().getGenerator();
         StructureStart structureStart = structure.generate(
+                selected,
+                level.dimension(),
                 level.registryAccess(),
                 chunkgenerator,
                 chunkgenerator.getBiomeSource(),
                 level.getChunkSource().randomState(),
                 level.getStructureManager(),
                 level.getSeed(),
-                new ChunkPos(pos),
+                ChunkPos.containing(pos),
                 0,
                 level,
                 (holder) -> true
@@ -219,10 +261,10 @@ public class PortalDataManager {
                         random,
                         new BoundingBox(
                                 chunkPos.getMinBlockX(),
-                                level.getMinBuildHeight(),
+                                level.getMinY(),
                                 chunkPos.getMinBlockZ(),
                                 chunkPos.getMaxBlockX(),
-                                level.getMaxBuildHeight(),
+                                level.getMaxY(),
                                 chunkPos.getMaxBlockZ()
                         ),
                         chunkPos
@@ -290,9 +332,9 @@ public class PortalDataManager {
                     for (int y = 0; y < 16; y++) {
                         for (int z = 0; z < 16; z++) {
                             gatewayPos.set(
-                                    SectionPos.sectionToBlockCoord(chunkPos.x, x),
+                                    SectionPos.sectionToBlockCoord(chunkPos.x(), x),
                                     SectionPos.sectionToBlockCoord(chunk.getSectionYFromSectionIndex(cy), y),
-                                    SectionPos.sectionToBlockCoord(chunkPos.z, z)
+                                    SectionPos.sectionToBlockCoord(chunkPos.z(), z)
                             );
                             if (chunk.getBlockState(gatewayPos).is(Blocks.GATEWAY)) {
                                 return gatewayPos;
@@ -306,7 +348,7 @@ public class PortalDataManager {
     }
 
     private static ChunkAccess getChunkWithRetry(ServerLevel level, BlockPos pos) {
-        return getChunkWithRetry(level, new ChunkPos(pos));
+        return getChunkWithRetry(level, ChunkPos.containing(pos));
     }
 
     private static LevelChunk getChunkWithRetry(ServerLevel level, ChunkPos pos) {
@@ -319,12 +361,12 @@ public class PortalDataManager {
             try {
                 // The UNKNOWN ticket added by getChunkFuture expires after one tick.
                 onServer(level, () -> {
-                    level.getChunkSource().addRegionTicket(GATEWAY_GENERATION_TICKET, pos, 0, pos);
+                    level.getChunkSource().addTicketWithRadius(GATEWAY_GENERATION_TICKET, pos, 0);
                     return null;
                 });
 
                 ChunkAccess chunk = level.getChunkSource()
-                        .getChunkFuture(pos.x, pos.z, ChunkStatus.FULL, true)
+                        .getChunkFuture(pos.x(), pos.z(), ChunkStatus.FULL, true)
                         .join()
                         .orElseThrow(() -> new RetryableChunkLoadException(pos));
                 return (LevelChunk) chunk;
@@ -364,7 +406,7 @@ public class PortalDataManager {
 
     private static int getColor(ServerLevel level, BlockPos pos) {
         Holder<Biome> biome = level.getBiome(pos);
-        ResourceLocation resourceLocation = biome.unwrapKey().map(ResourceKey::location).orElse(ResourceLocation.parse("minecraft:plains"));
+        Identifier resourceLocation = biome.unwrapKey().map(ResourceKey::identifier).orElse(Identifier.parse("minecraft:plains"));
         if (!Config.getInstance().colors.containsKey(resourceLocation.toString())) {
             Common.LOGGER.info("Biome {} not found in color config, using default foliage color.", resourceLocation);
         }
@@ -372,31 +414,29 @@ public class PortalDataManager {
     }
 
     public static class PortalDataLookup extends SavedData {
+        private static final Codec<PortalDataLookup> CODEC = Codec.unboundedMap(Codec.STRING, PortalPair.CODEC)
+                .xmap(PortalDataLookup::new, PortalDataLookup::serialize);
+
         final Set<PortalPair> portals = new HashSet<>();
         final Map<Long, Set<PortalPair>> lookup = new HashMap<>();
 
-        public static SavedData.Factory<PortalDataLookup> factory() {
-            return new SavedData.Factory<>(PortalDataLookup::new, PortalDataLookup::load, DataFixTypes.SAVED_DATA_MAP_DATA);
+        public PortalDataLookup() {
         }
 
-        public static PortalDataLookup load(CompoundTag nbt, HolderLookup.Provider registries) {
-            PortalDataLookup c = new PortalDataLookup();
-            for (String key : nbt.getAllKeys()) {
-                PortalPair pair = PortalPair.load(nbt.get(key));
-                c.portals.add(pair);
-                c.populateLookup(pair);
+        private PortalDataLookup(Map<String, PortalPair> encoded) {
+            for (PortalPair pair : encoded.values()) {
+                portals.add(pair);
+                populateLookup(pair);
             }
-            return c;
         }
 
-        @Override
-        public CompoundTag save(CompoundTag nbt, HolderLookup.Provider registries) {
+        private Map<String, PortalPair> serialize() {
+            Map<String, PortalPair> encoded = new LinkedHashMap<>();
             int index = 0;
             for (PortalPair pair : portals) {
-                nbt.put(String.valueOf(index), pair.save());
-                index++;
+                encoded.put(String.valueOf(index++), pair);
             }
-            return nbt;
+            return encoded;
         }
 
         public synchronized void add(PortalPair data) {
@@ -479,9 +519,9 @@ public class PortalDataManager {
             }
 
             BlockPos center = boundingBox.getCenter();
-            level.getChunkSource().addRegionTicket(TicketType.PORTAL, new ChunkPos(center), 3, center);
+            level.getChunkSource().addTicketWithRadius(TicketType.PORTAL, ChunkPos.containing(center), 3);
 
-            for (int y = boundingBox.minY(); y <= level.getMaxBuildHeight(); y++) {
+            for (int y = boundingBox.minY(); y <= level.getMaxY(); y++) {
                 for (BlockPos candidate : candidates) {
                     BlockPos pos = new BlockPos(candidate.getX(), y, candidate.getZ());
                     if (level.getBlockState(pos).isAir() && level.getBlockState(pos.offset(0, 1, 0)).isAir()) {
@@ -499,14 +539,6 @@ public class PortalDataManager {
                 Portal.CODEC.fieldOf("first").forGetter(PortalPair::first),
                 Portal.CODEC.fieldOf("second").forGetter(PortalPair::second)
         ).apply(pair, PortalPair::new));
-
-        public static PortalPair load(Tag nbt) {
-            return CODEC.parse(NbtOps.INSTANCE, nbt).resultOrPartial(Common.LOGGER::error).orElseThrow();
-        }
-
-        public Tag save() {
-            return CODEC.encodeStart(NbtOps.INSTANCE, this).resultOrPartial(Common.LOGGER::error).orElseThrow();
-        }
 
         public Portal getTarget(BlockPos pos) {
             double dist1 = first.boundingBox.getCenter().distSqr(pos);

@@ -1,7 +1,7 @@
 package net.conczin.immersive_gateways.compat;
 
 import net.conczin.immersive_gateways.Common;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -41,7 +41,7 @@ public class StructurifyCompat {
     }
 
     @SuppressWarnings("unchecked")
-    public static boolean isStructureDisabled(ResourceLocation id) {
+    public static boolean isStructureDisabled(Identifier id) {
         if (!LOADED) return false;
         try {
             Object config = getConfig.invoke(null);

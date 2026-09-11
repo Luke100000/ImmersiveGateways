@@ -1,6 +1,6 @@
 plugins {
     id 'multiloader-loader'
-    id 'fabric-loom'
+    id 'net.fabricmc.fabric-loom'
 }
 
 repositories {
@@ -16,25 +16,18 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
 
-    modImplementation "maven.modrinth:sodium:${sodium_version}"
-    modImplementation "maven.modrinth:iris:${iris_version}"
+    runtimeOnly "maven.modrinth:sodium:${sodium_version}"
+    runtimeOnly "maven.modrinth:iris:${iris_version}"
+    runtimeOnly "maven.modrinth:structurify:${structurify_version}"
+    runtimeOnly "maven.modrinth:yacl:${yacl_version}"
 
-    modLocalRuntime "maven.modrinth:sodium:${sodium_version}"
-    modLocalRuntime "maven.modrinth:iris:${iris_version}"
-    modLocalRuntime "maven.modrinth:structurify:${structurify_version}"
-    modLocalRuntime "maven.modrinth:yacl:${yacl_version}"
-
-    modRuntimeOnly "org.antlr:antlr4-runtime:4.11.1"
-    modRuntimeOnly "org.quiltmc.parsers:gson:0.2.1"
-    modRuntimeOnly "io.github.douira:glsl-transformer:2.0.0-pre13"
-    modRuntimeOnly "org.anarres:jcpp:1.4.14"
+    runtimeOnly "org.antlr:antlr4-runtime:4.11.1"
+    runtimeOnly "org.quiltmc.parsers:gson:0.2.1"
+    runtimeOnly "io.github.douira:glsl-transformer:2.0.0-pre13"
+    runtimeOnly "org.anarres:jcpp:1.4.14"
 
     implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
     implementation project(":common")
@@ -43,9 +36,6 @@ dependencies {
 loom {
     if (project(":common").file("src/main/resources/${mod_id}.accesswidener").exists()) {
         accessWidenerPath.set(project(":common").file("src/main/resources/${mod_id}.accesswidener"))
-    }
-    mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
     }
     runs {
         client {

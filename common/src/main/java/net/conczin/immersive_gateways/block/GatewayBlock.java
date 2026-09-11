@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -56,7 +57,7 @@ public class GatewayBlock extends BaseEntityBlock {
     }
 
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level) {
-        return level.isClientSide ? (l, p, s, b) -> GatewayBlockEntity.clientTick(l, p, s, (GatewayBlockEntity) b) : (l, p, s, b) -> GatewayBlockEntity.serverTick((ServerLevel) l, p, s, (GatewayBlockEntity) b);
+        return level.isClientSide() ? (l, p, s, b) -> GatewayBlockEntity.clientTick(l, p, s, (GatewayBlockEntity) b) : (l, p, s, b) -> GatewayBlockEntity.serverTick((ServerLevel) l, p, s, (GatewayBlockEntity) b);
     }
 
     @Override
@@ -69,7 +70,7 @@ public class GatewayBlock extends BaseEntityBlock {
     }
 
     @Override
-    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effectApplier, boolean isPrecise) {
         if (level instanceof ServerLevel serverLevel && canEntityTeleport(entity)) {
             Entity rootVehicle = entity.getRootVehicle();
             if (!rootVehicle.isOnPortalCooldown()) {

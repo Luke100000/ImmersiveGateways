@@ -5,9 +5,9 @@ import net.conczin.immersive_gateways.block.GatewayExecutorController;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 
 import java.util.function.Consumer;
 
@@ -34,7 +34,7 @@ public class CommonFabric implements ModInitializer {
 
         //noinspection DataFlowIssue
         BlockEntityTypes.register((name, factory, block) ->
-                Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, name, BlockEntityType.Builder.of(factory::create, block).build(null)));
+                Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, name, FabricBlockEntityTypeBuilder.create(factory::create, block).build()));
 
         Common.init();
     }
