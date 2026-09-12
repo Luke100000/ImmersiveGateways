@@ -24,6 +24,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.levelgen.RandomSupport;
+import net.minecraft.world.level.levelgen.ThreadSafeLegacyRandomSource;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
@@ -59,7 +61,7 @@ public class PortalDataManager {
     );
     private static final Set<Path> CHECKED_DATA_PATHS = ConcurrentHashMap.newKeySet();
 
-    private static final RandomSource random = RandomSource.createThreadSafe();
+    private static final RandomSource random = new ThreadSafeLegacyRandomSource(RandomSupport.generateUniqueSeed());
 
     public static long toLong(int x, int z) {
         return ((long) x << 32) | (z & 0xFFFFFFFFL);
